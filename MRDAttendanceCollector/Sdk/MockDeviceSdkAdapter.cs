@@ -29,7 +29,7 @@ public sealed class MockDeviceSdkAdapter : IDeviceSdkAdapter
         };
 
         _logger.LogInformation(
-            "Mock SDK device {DeviceId} returning {Count} sample log(s)",
+            "Mock SDK máy {DeviceId} trả về {Count} bản ghi mẫu",
             device.AttDeviceId,
             sample.Count);
 

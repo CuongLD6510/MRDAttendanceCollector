@@ -2,6 +2,8 @@
 
 Windows Service (.NET 8 Worker) thu thập log chấm công từ máy ZKTeco theo lịch Cron, đẩy về Backend qua HTTP API.
 
+**Người mới bắt đầu?** Đọc trước: **[docs/getting-started.md](docs/getting-started.md)** — khái niệm Windows Service, file cần quan tâm, chạy thử và xem log.
+
 Tham chiếu nghiệp vụ:
 
 - [Blueprint Attendance Management](../ZktecoWinformTest/docs/attendance-management/blueprint.md)
@@ -23,13 +25,14 @@ MRDAttendanceCollector/
   MRDAttendanceCollector/
     Program.cs
     appsettings.json
-    Models/           # Entities + sync/blackout logic + interfaces (giống MRDMobileApplication/Models)
+    Models/           # Entities + sync/blackout logic + interfaces
     Configuration/    # Options (Scheduler, Backend, Blackout, Mock)
     Backend/          # HttpClient + Mock API client
     Sdk/              # ZKTeco + Mock device adapter
     Scheduling/       # Cron hosted service
     Libs/             # ZKTeco COM / native DLLs
   docs/
+    getting-started.md      # Hướng dẫn người mới
     api-contracts.md
     install-windows-service.md
 ```
@@ -41,6 +44,8 @@ MRDAttendanceCollector/
 - Đăng ký COM: `MRDAttendanceCollector/Libs/SDK-SETUP.txt`
 
 ## Build & chạy
+
+Chi tiết + xem log: [docs/getting-started.md](docs/getting-started.md).
 
 ```powershell
 cd D:\CuongLD\WorkSpace\projects\TimeLeave\MRDAttendanceCollector

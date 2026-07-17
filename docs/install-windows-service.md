@@ -1,5 +1,7 @@
 ﻿# Cài đặt Windows Service — MRDAttendanceCollector
 
+> Người mới: nên chạy thử dạng **console** và đọc [getting-started.md](getting-started.md) trước khi cài service lên máy chủ.
+
 Chạy trên máy Windows (x86 / WOW64) có quyền Administrator.
 
 ## 1. Đăng ký ZKTeco SDK (COM)

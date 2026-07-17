@@ -43,7 +43,7 @@ public sealed class MockAttendanceBackendClient : IAttendanceBackendClient
             });
         }
 
-        _logger.LogInformation("Mock backend returned {Count} device(s)", devices.Count);
+        _logger.LogInformation("Mock Backend trả về {Count} máy", devices.Count);
         return Task.FromResult<IReadOnlyList<AttendanceDevice>>(devices);
     }
 
@@ -53,7 +53,10 @@ public sealed class MockAttendanceBackendClient : IAttendanceBackendClient
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        _logger.LogInformation("Mock PostRawLogs device={DeviceId} count={Count}", attDeviceId, logs.Count);
+        _logger.LogInformation(
+            "Mock PostRawLogs máy={DeviceId} số bản ghi={Count}",
+            attDeviceId,
+            logs.Count);
         return Task.FromResult(new PostRawLogsResult { Inserted = logs.Count, Duplicate = 0 });
     }
 
@@ -61,7 +64,7 @@ public sealed class MockAttendanceBackendClient : IAttendanceBackendClient
     {
         cancellationToken.ThrowIfCancellationRequested();
         _logger.LogInformation(
-            "Mock PostSyncResult device={DeviceId} status={Status} read={Read} inserted={Inserted} duplicate={Duplicate}",
+            "Mock PostSyncResult máy={DeviceId} trạng thái={Status} đọc={Read} thêm={Inserted} trùng={Duplicate}",
             result.AttDeviceId,
             result.JobStatus,
             result.RecordsRead,

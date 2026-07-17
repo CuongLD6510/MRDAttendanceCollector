@@ -31,7 +31,7 @@ public sealed class CronSyncHostedService : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation(
-            "Cron sync hosted service started. Cron={Cron} TimeZone={TimeZone}",
+            "Dịch vụ lịch Cron đã khởi động. Cron={Cron} TimeZone={TimeZone}",
             _options.Cron,
             _timeZone.Id);
 
@@ -41,7 +41,7 @@ public sealed class CronSyncHostedService : BackgroundService
             var next = _cron.GetNextOccurrence(utcNow, _timeZone);
             if (next is null)
             {
-                _logger.LogError("Cron expression produced no next occurrence; stopping scheduler loop");
+                _logger.LogError("Biểu thức Cron không có lần chạy tiếp theo; dừng vòng lặp lịch");
                 break;
             }
 
@@ -66,7 +66,9 @@ public sealed class CronSyncHostedService : BackgroundService
             var localNow = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, _timeZone).DateTime;
             if (_blackoutService.IsInBlackout(localNow))
             {
-                _logger.LogWarning("Sync skipped due to blackout window. LocalTime={LocalTime:HH:mm:ss}", localNow);
+                _logger.LogWarning(
+                    "Bỏ qua đồng bộ vì đang trong khoảng Blackout. Giờ local={LocalTime:HH:mm:ss}",
+                    localNow);
                 continue;
             }
 
@@ -80,11 +82,11 @@ public sealed class CronSyncHostedService : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Unhandled error during sync cycle");
+                _logger.LogError(ex, "Lỗi chưa xử lý trong chu kỳ đồng bộ");
             }
         }
 
-        _logger.LogInformation("Cron sync hosted service stopped");
+        _logger.LogInformation("Dịch vụ lịch Cron đã dừng");
     }
 
     private static TimeZoneInfo ResolveTimeZone(string timeZoneId)

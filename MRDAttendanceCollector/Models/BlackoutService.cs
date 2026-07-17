@@ -18,7 +18,10 @@ public sealed class BlackoutService : IBlackoutService
         {
             if (!TimeSpan.TryParse(window.Start, out var start) || !TimeSpan.TryParse(window.End, out var end))
             {
-                _logger.LogWarning("Invalid blackout window Start={Start} End={End}; skipped", window.Start, window.End);
+                _logger.LogWarning(
+                    "Khoảng Blackout không hợp lệ Start={Start} End={End}; bỏ qua",
+                    window.Start,
+                    window.End);
                 continue;
             }
 

@@ -132,11 +132,11 @@ public sealed class HttpAttendanceBackendClient : IAttendanceBackendClient
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    throw new HttpRequestException($"HTTP {(int)response.StatusCode} calling {relativeUrl}: {body}");
+                    throw new HttpRequestException($"HTTP {(int)response.StatusCode} khi gọi {relativeUrl}: {body}");
                 }
 
                 return JsonSerializer.Deserialize<ApiEnvelope>(body, JsonOptions)
-                    ?? throw new InvalidOperationException($"Empty response from {relativeUrl}");
+                    ?? throw new InvalidOperationException($"Phản hồi rỗng từ {relativeUrl}");
             }
             catch (OperationCanceledException)
             {
@@ -145,7 +145,12 @@ public sealed class HttpAttendanceBackendClient : IAttendanceBackendClient
             catch (Exception ex)
             {
                 lastError = ex;
-                _logger.LogWarning(ex, "Backend call {Url} attempt {Attempt}/{Max} failed", relativeUrl, attempt, attempts);
+                _logger.LogWarning(
+                    ex,
+                    "Gọi Backend {Url} lần {Attempt}/{Max} thất bại",
+                    relativeUrl,
+                    attempt,
+                    attempts);
                 if (attempt < attempts)
                 {
                     await Task.Delay(TimeSpan.FromSeconds(_scheduler.RetryDelaySeconds), cancellationToken);
@@ -153,14 +158,15 @@ public sealed class HttpAttendanceBackendClient : IAttendanceBackendClient
             }
         }
 
-        throw new InvalidOperationException($"Backend call {relativeUrl} failed after {attempts} attempts.", lastError);
+        throw new InvalidOperationException($"Gọi Backend {relativeUrl} thất bại sau {attempts} lần thử.", lastError);
     }
 
     private static void EnsureSuccess(ApiEnvelope response, string apiName)
     {
         if (!string.Equals(response.ErrCode, "1", StringComparison.Ordinal))
         {
-            throw new InvalidOperationException($"{apiName} returned ErrCode={response.ErrCode}, ErrMsg={response.ErrMsg}");
+            throw new InvalidOperationException(
+                $"{apiName} trả về ErrCode={response.ErrCode}, ErrMsg={response.ErrMsg}");
         }
     }
 

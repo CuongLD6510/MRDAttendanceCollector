@@ -31,7 +31,7 @@ public sealed class ZkTecoDeviceSdkAdapter : IDeviceSdkAdapter
     {
         if (!OperatingSystem.IsWindows())
         {
-            throw new PlatformNotSupportedException("ZKTeco SDK requires Windows (x86).");
+            throw new PlatformNotSupportedException("ZKTeco SDK yêu cầu Windows (x86).");
         }
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -48,11 +48,11 @@ public sealed class ZkTecoDeviceSdkAdapter : IDeviceSdkAdapter
                 var errorCode = 0;
                 zkem.GetLastError(ref errorCode);
                 throw new InvalidOperationException(
-                    $"Cannot connect to device {device.AttDeviceId} at {device.IpAddress}:{device.PortNo}. ErrorCode={errorCode}");
+                    $"Không kết nối được máy {device.AttDeviceId} tại {device.IpAddress}:{device.PortNo}. ErrorCode={errorCode}");
             }
 
             _logger.LogInformation(
-                "Connected to ZKTeco device {DeviceId} {Ip}:{Port}",
+                "Đã kết nối máy ZKTeco {DeviceId} {Ip}:{Port}",
                 device.AttDeviceId,
                 device.IpAddress,
                 device.PortNo);
@@ -62,7 +62,10 @@ public sealed class ZkTecoDeviceSdkAdapter : IDeviceSdkAdapter
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var logs = ReadLogsInRange(zkem, machineNumber, fromInclusive, toInclusive, device.AttDeviceId);
-                _logger.LogInformation("Device {DeviceId} SDK returned {Count} raw log(s)", device.AttDeviceId, logs.Count);
+                _logger.LogInformation(
+                    "Máy {DeviceId} SDK trả về {Count} bản ghi thô",
+                    device.AttDeviceId,
+                    logs.Count);
                 return logs;
             }
             finally
@@ -77,7 +80,7 @@ public sealed class ZkTecoDeviceSdkAdapter : IDeviceSdkAdapter
                 try { zkem.Disconnect(); }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Error disconnecting device {DeviceId}", device.AttDeviceId);
+                    _logger.LogWarning(ex, "Lỗi khi ngắt kết nối máy {DeviceId}", device.AttDeviceId);
                 }
             }
 

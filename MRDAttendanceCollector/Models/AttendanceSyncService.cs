@@ -24,7 +24,7 @@ public sealed class AttendanceSyncService
 
     public async Task RunCycleAsync(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Sync cycle started");
+        _logger.LogInformation("Bắt đầu chu kỳ đồng bộ");
 
         IReadOnlyList<AttendanceDevice> devices;
         try
@@ -33,23 +33,26 @@ public sealed class AttendanceSyncService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to get active devices from backend");
+            _logger.LogError(ex, "Không lấy được danh sách máy từ Backend");
             return;
         }
 
         if (devices.Count == 0)
         {
-            _logger.LogInformation("No active devices to sync");
+            _logger.LogInformation("Không có máy ACTIVE để đồng bộ");
             return;
         }
 
-        _logger.LogInformation("Syncing {Count} device(s), MaxParallel={MaxParallel}", devices.Count, _scheduler.MaxParallelJobs);
+        _logger.LogInformation(
+            "Đồng bộ {Count} máy, MaxParallel={MaxParallel}",
+            devices.Count,
+            _scheduler.MaxParallelJobs);
 
         using var semaphore = new SemaphoreSlim(_scheduler.MaxParallelJobs, _scheduler.MaxParallelJobs);
         var tasks = devices.Select(device => SyncDeviceWithThrottleAsync(device, semaphore, cancellationToken));
         await Task.WhenAll(tasks);
 
-        _logger.LogInformation("Sync cycle finished");
+        _logger.LogInformation("Kết thúc chu kỳ đồng bộ");
     }
 
     private async Task SyncDeviceWithThrottleAsync(
@@ -67,7 +70,7 @@ public sealed class AttendanceSyncService
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             _logger.LogError(
-                "Device {DeviceId} ({Name}) job timed out after {Seconds}s",
+                "Máy {DeviceId} ({Name}) hết thời gian chờ sau {Seconds} giây",
                 device.AttDeviceId,
                 device.DeviceName,
                 _scheduler.JobTimeoutSeconds);
@@ -78,13 +81,13 @@ public sealed class AttendanceSyncService
                 JobStartTime = DateTime.Now,
                 JobEndTime = DateTime.Now,
                 JobStatus = SyncJobStatuses.Timeout,
-                ErrorMessage = $"Job timed out after {_scheduler.JobTimeoutSeconds}s",
+                ErrorMessage = $"Hết thời gian chờ sau {_scheduler.JobTimeoutSeconds} giây",
                 LastProcessedLogTime = device.LastProcessedLogTime
             }, cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unexpected error syncing device {DeviceId}", device.AttDeviceId);
+            _logger.LogError(ex, "Lỗi không mong đợi khi đồng bộ máy {DeviceId}", device.AttDeviceId);
         }
         finally
         {
@@ -103,7 +106,7 @@ public sealed class AttendanceSyncService
         var to = DateTime.Now;
 
         _logger.LogInformation(
-            "Device {DeviceId} ({Name}) read range {From:o} → {To:o}",
+            "Máy {DeviceId} ({Name}) khoảng đọc {From:o} → {To:o}",
             device.AttDeviceId,
             device.DeviceName,
             from,
@@ -140,7 +143,7 @@ public sealed class AttendanceSyncService
                 await _backend.PostSyncResultAsync(result, cancellationToken);
 
                 _logger.LogInformation(
-                    "Device {DeviceId} SUCCESS Read={Read} Inserted={Inserted} Duplicate={Duplicate}",
+                    "Máy {DeviceId} THÀNH CÔNG Đọc={Read} Thêm mới={Inserted} Trùng={Duplicate}",
                     device.AttDeviceId,
                     result.RecordsRead,
                     result.RecordsInserted,
@@ -157,7 +160,7 @@ public sealed class AttendanceSyncService
                 retryCount++;
                 _logger.LogWarning(
                     ex,
-                    "Device {DeviceId} attempt {Attempt}/{Max} failed",
+                    "Máy {DeviceId} lần thử {Attempt}/{Max} thất bại",
                     device.AttDeviceId,
                     retryCount,
                     _scheduler.RetryMaxAttempts);
@@ -178,12 +181,12 @@ public sealed class AttendanceSyncService
             LastProcessedLogTime = device.LastProcessedLogTime,
             RetryCount = retryCount,
             JobStatus = SyncJobStatuses.Failed,
-            ErrorMessage = lastError?.Message ?? "Unknown error"
+            ErrorMessage = lastError?.Message ?? "Lỗi không xác định"
         }, cancellationToken);
 
         _logger.LogError(
             lastError,
-            "Device {DeviceId} FAILED after {Attempts} attempts",
+            "Máy {DeviceId} THẤT BẠI sau {Attempts} lần thử",
             device.AttDeviceId,
             retryCount);
     }
@@ -220,7 +223,7 @@ public sealed class AttendanceSyncService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to post sync result for device {DeviceId}", result.AttDeviceId);
+            _logger.LogError(ex, "Không gửi được kết quả đồng bộ của máy {DeviceId}", result.AttDeviceId);
         }
     }
 }

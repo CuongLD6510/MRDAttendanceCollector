@@ -1,9 +1,14 @@
-﻿using Microsoft.Extensions.Options;
+﻿using System.Text;
+using Microsoft.Extensions.Options;
 using MRDAttendanceCollector.Backend;
 using MRDAttendanceCollector.Configuration;
+using MRDAttendanceCollector.Models;
 using MRDAttendanceCollector.Scheduling;
 using MRDAttendanceCollector.Sdk;
-using MRDAttendanceCollector.Models;
+
+// Console Windows mặc định dùng code page OEM → tiếng Việt bị lỗi font (?).
+// Ép UTF-8 khi chạy dạng console/debug để log hiển thị đúng dấu.
+TrySetConsoleUtf8();
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -64,3 +69,16 @@ builder.Logging.AddEventLog(settings =>
 
 var host = builder.Build();
 host.Run();
+
+static void TrySetConsoleUtf8()
+{
+    try
+    {
+        Console.OutputEncoding = Encoding.UTF8;
+        Console.InputEncoding = Encoding.UTF8;
+    }
+    catch (IOException)
+    {
+        // Không có console (Windows Service) — bỏ qua.
+    }
+}
