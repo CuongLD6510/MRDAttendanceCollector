@@ -1,0 +1,28 @@
+ZKTeco Standalone SDK - Huong dan cai dat
+==========================================
+
+1. Tai ZKTeco Standalone SDK tu trang ho tro ZKTeco hoac dia kem may cham cong.
+
+2. Copy cac file sau vao thu muc Libs/ (cung cap voi file nay):
+   - zkemkeeper.dll
+   - commpro.dll
+   - comms.dll
+   - rscagent.dll
+   - tcpcomm.dll
+   - usbcomm.dll
+   - plcommpro.dll
+   - plrscomm.dll
+   - plusbcomm.dll
+   - pltcpcomm.dll
+
+3. Dang ky COM (BAT BUOC - chay voi quyen Administrator):
+   - Click phai file Register_SDK_x86.bat -> Run as administrator
+   - Hoac mo CMD (Admin) va chay:
+     cd /d "D:\CuongLD\WorkSpace\projects\ZktecoWinformTest\ZktecoWinformTest\Libs"
+     %windir%\SysWOW64\regsvr32.exe zkemkeeper.dll
+
+4. Build project voi Platform Target = x86 (da cau hinh trong .csproj).
+
+5. Interop.zkemkeeper.dll da duoc tao san trong Libs/ (khong can tao lai).
+
+Luu y: Ping/TCP test OK chi chung minh port 4370 mo. SDK van can COM dang ky dung.
