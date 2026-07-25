@@ -29,7 +29,7 @@ public sealed class AttReprocessDrainHostedService : BackgroundService
         }
 
         var intervalSeconds = Math.Max(10, _options.IntervalSeconds);
-        var maxItems = Math.Max(1, Math.Min(10, _options.MaxItemsPerDrain));
+        var maxItems = Math.Max(1, Math.Min(30, _options.MaxItemsPerDrain));
         var timeoutSeconds = Math.Max(60, _options.TimeoutSeconds);
 
         _logger.LogInformation(
@@ -38,22 +38,9 @@ public sealed class AttReprocessDrainHostedService : BackgroundService
             maxItems,
             timeoutSeconds);
 
+        // Drain ngay lần đầu, sau đó mới chờ Interval — giảm độ trễ sau phân ca / đổi ca.
         while (!stoppingToken.IsCancellationRequested)
         {
-            try
-            {
-                await Task.Delay(TimeSpan.FromSeconds(intervalSeconds), stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-
-            if (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-
             try
             {
                 var result = await _backend.DrainReprocessQueueAsync(maxItems, stoppingToken);
@@ -80,6 +67,20 @@ public sealed class AttReprocessDrainHostedService : BackgroundService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Lỗi khi drain hàng đợi tính lại bảng công");
+            }
+
+            if (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(intervalSeconds), stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
             }
         }
 

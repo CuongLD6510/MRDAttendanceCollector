@@ -12,7 +12,7 @@ Quy ước response:
 
 ---
 
-## 1. `POST api/AttendanceAPI/fnGetCollectorDevices` *(đã implement)*
+## 1. `POST api/AttendanceAPI/fnGetCollectorDevices` _(đã implement)_
 
 Lấy danh sách máy `STATUS_ID = ACTIVE` kèm mốc sync.
 
@@ -49,15 +49,49 @@ Lấy danh sách máy `STATUS_ID = ACTIVE` kèm mốc sync.
         "LAST_PROCESSED_LOG_TIME": null,
         "DEVICE_VENDOR": "ZKTeco"
       }
+    ],
+    "INITIAL_SYNC_FROM": "2026-07-20T23:59:00"
+  }
+}
+```
+
+| Field                     | Ghi chú                                                                       |
+| ------------------------- | ----------------------------------------------------------------------------- |
+| `LAST_PROCESSED_LOG_TIME` | `null` nếu chưa sync lần nào → Collector dùng `Data.INITIAL_SYNC_FROM`        |
+| `INITIAL_SYNC_FROM`       | (Ngày đầu kỳ lương hiện tại − 1) lúc 23:59. Ví dụ kỳ tháng 8 (21/7→20/8) → `2026-07-20T23:59:00`. Fallback Collector: `Scheduler:InitialSyncFromDate` |
+| `DEVICE_VENDOR`           | Mặc định `ZKTeco`; dùng để chọn SDK adapter                                   |
+
+---
+
+## 1b. `POST api/AttendanceAPI/fnGetCollectorBlackoutWindows` _(đã implement)_
+
+Lấy danh sách khoảng giờ tạm dừng đồng bộ máy (HR cấu hình trên GeneralConfig / key `BlackoutWindows` trong `TBL_ATT_SCORING_CONFIG`).
+
+### Request (mẫu)
+
+```json
+{}
+```
+
+### Response (mẫu)
+
+```json
+{
+  "ErrCode": "1",
+  "ErrMsg": "success",
+  "ErrBack": "",
+  "Data": {
+    "BlackoutWindows": [
+      { "Start": "11:30", "End": "12:30" },
+      { "Start": "22:00", "End": "23:00" }
     ]
   }
 }
 ```
 
-| Field | Ghi chú |
-| ----- | ------- |
-| `LAST_PROCESSED_LOG_TIME` | `null` nếu chưa sync lần nào → Collector dùng `Scheduler:InitialSyncFromDate` |
-| `DEVICE_VENDOR` | Mặc định `ZKTeco`; dùng để chọn SDK adapter |
+| Field             | Ghi chú                                                                              |
+| ----------------- | ------------------------------------------------------------------------------------ |
+| `BlackoutWindows` | `[]` = không tạm dừng; Collector gọi API này mỗi chu kỳ Cron (không đọc appsettings) |
 
 ---
 
@@ -142,13 +176,13 @@ Cập nhật mốc sync trên `TBL_ATT_DEVICE` và ghi `TBL_ATT_SYNC_JOB_LOG`.
 
 ## 4. `POST api/AttendanceAPI/fnDrainAttReprocessQueue`
 
-Collector (hosted drain) gọi định kỳ để backend claim job `TBL_ATT_REPROCESS_QUEUE` → tính bảng công → upsert `TBL_ATT_DAILY_RESULT`.
+Collector (hosted drain) gọi định kỳ để backend claim job `TBL_ATT_REPROCESS_QUEUE` → tính bảng công từng NV theo lát ≤ 31 ngày với `PERSIST=true` → upsert `TBL_ATT_DAILY_RESULT`. Job thiếu mã NV → `FAILED` (không fan-out toàn công ty).
 
 ### Request (mẫu)
 
 ```json
 {
-  "MaxItems": 3
+  "MaxItems": 15
 }
 ```
 
@@ -172,3 +206,4 @@ Collector (hosted drain) gọi định kỳ để backend claim job `TBL_ATT_REP
 ## Auth (tuỳ chọn)
 
 Collector gửi header `X-Api-Key` nếu `Backend:ApiKey` khác rỗng. Backend validate khi `Web.config` key `AttendanceCollectorApiKey` khác rỗng.
+

@@ -59,17 +59,22 @@ Hoặc mở solution → chọn profile `MRDAttendanceCollector` → **F5**.
 
 ## Go-live checklist
 
+Hướng dẫn đầy đủ từng bước trên server: **[docs/deploy-collector-server.md](docs/deploy-collector-server.md)**.
+
 1. Đăng ký SDK x86 (`Libs/Register_SDK_x86.bat` Run as Administrator).
-2. Publish `win-x86` Release → cài Windows Service ([install-windows-service.md](docs/install-windows-service.md)).
+2. Publish `win-x86` Release → cài Windows Service.
 3. Trong thư mục publish: chỉnh `Backend:BaseUrl` trỏ API thật; optional `ApiKey`.
 4. Web: tạo máy ACTIVE (IP/Port/MachineNumber đúng).
 5. `ENROLL_NUMBER` trên máy = `TBL_EMPLOYEE.EMP_NUMBER`.
 6. Kiểm tra Event Log / `TBL_ATT_SYNC_JOB_LOG` / `TBL_ATT_RAW_LOG` → mở màn Bảng công.
 
-## Cài Windows Service
+## Deploy / cài Windows Service trên server
 
-Xem [install-windows-service.md](docs/install-windows-service.md).
+- **[docs/deploy-collector-server.md](docs/deploy-collector-server.md)** — config Production, publish, SDK, service, checklist, sự cố
+- [docs/install-windows-service.md](docs/install-windows-service.md) — lệnh `sc.exe` / PowerShell ngắn
 
-## Lưu ý cấu hình mảng (`BlackoutWindows`)
+## Giờ tạm dừng đồng bộ máy (`BlackoutWindows`)
 
-`appsettings.json` và `appsettings.Development.json` gộp theo index. Để tắt blackout khi debug, ghi đè đủ các phần tử, không chỉ đặt `[]`.
+Collector **không** đọc từ appsettings. Mỗi chu kỳ Cron gọi `fnGetCollectorBlackoutWindows` — HR cấu hình trên màn **Cấu hình chung**. Nếu API lỗi, giữ danh sách đã tải lần trước (ban đầu rỗng = không tạm dừng).
+
+Muốn debug chỉ chạy drain: trên Web đặt khoảng cả ngày `00:00` → `24:00`.

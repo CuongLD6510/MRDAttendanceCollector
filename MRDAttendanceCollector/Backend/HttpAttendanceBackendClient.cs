@@ -37,32 +37,57 @@ public sealed class HttpAttendanceBackendClient : IAttendanceBackendClient
         _logger = logger;
     }
 
-    public async Task<IReadOnlyList<AttendanceDevice>> GetActiveDevicesAsync(CancellationToken cancellationToken)
+    public async Task<CollectorDevicesSnapshot> GetActiveDevicesAsync(CancellationToken cancellationToken)
     {
         var response = await PostWithRetryAsync("api/AttendanceAPI/fnGetCollectorDevices", new { }, cancellationToken);
         EnsureSuccess(response, "fnGetCollectorDevices");
 
         var devices = new List<AttendanceDevice>();
-        if (response.Data?.Devices is null)
+        if (response.Data?.Devices != null)
         {
-            return devices;
+            foreach (var d in response.Data.Devices)
+            {
+                devices.Add(new AttendanceDevice
+                {
+                    AttDeviceId = d.ATT_DEVICE_ID,
+                    DeviceName = d.DEVICE_NAME ?? string.Empty,
+                    IpAddress = d.IP_ADDRESS ?? string.Empty,
+                    PortNo = d.PORT_NO <= 0 ? 4370 : d.PORT_NO,
+                    MachineNumber = d.MACHINE_NUMBER <= 0 ? 1 : d.MACHINE_NUMBER,
+                    LastProcessedLogTime = d.LAST_PROCESSED_LOG_TIME,
+                    DeviceVendor = string.IsNullOrWhiteSpace(d.DEVICE_VENDOR) ? "ZKTeco" : d.DEVICE_VENDOR
+                });
+            }
         }
 
-        foreach (var d in response.Data.Devices)
+        return new CollectorDevicesSnapshot
         {
-            devices.Add(new AttendanceDevice
+            Devices = devices,
+            InitialSyncFrom = response.Data?.INITIAL_SYNC_FROM
+        };
+    }
+
+    public async Task<IReadOnlyList<BlackoutWindowOptions>> GetBlackoutWindowsAsync(CancellationToken cancellationToken)
+    {
+        var response = await PostWithRetryAsync("api/AttendanceAPI/fnGetCollectorBlackoutWindows", new { }, cancellationToken);
+        EnsureSuccess(response, "fnGetCollectorBlackoutWindows");
+
+        var list = new List<BlackoutWindowOptions>();
+        if (response.Data?.BlackoutWindows is null)
+        {
+            return list;
+        }
+
+        foreach (var w in response.Data.BlackoutWindows)
+        {
+            list.Add(new BlackoutWindowOptions
             {
-                AttDeviceId = d.ATT_DEVICE_ID,
-                DeviceName = d.DEVICE_NAME ?? string.Empty,
-                IpAddress = d.IP_ADDRESS ?? string.Empty,
-                PortNo = d.PORT_NO <= 0 ? 4370 : d.PORT_NO,
-                MachineNumber = d.MACHINE_NUMBER <= 0 ? 1 : d.MACHINE_NUMBER,
-                LastProcessedLogTime = d.LAST_PROCESSED_LOG_TIME,
-                DeviceVendor = string.IsNullOrWhiteSpace(d.DEVICE_VENDOR) ? "ZKTeco" : d.DEVICE_VENDOR
+                Start = w.Start ?? string.Empty,
+                End = w.End ?? string.Empty
             });
         }
 
-        return devices;
+        return list;
     }
 
     public async Task<PostRawLogsResult> PostRawLogsAsync(
@@ -238,11 +263,19 @@ public sealed class HttpAttendanceBackendClient : IAttendanceBackendClient
     private sealed class ApiData
     {
         public List<ApiDevice>? Devices { get; set; }
+        public DateTime? INITIAL_SYNC_FROM { get; set; }
+        public List<ApiBlackoutWindow>? BlackoutWindows { get; set; }
         public int Inserted { get; set; }
         public int Duplicate { get; set; }
         public int Processed { get; set; }
         public int Failed { get; set; }
         public int Remaining { get; set; }
+    }
+
+    private sealed class ApiBlackoutWindow
+    {
+        public string? Start { get; set; }
+        public string? End { get; set; }
     }
 
     private sealed class ApiDevice

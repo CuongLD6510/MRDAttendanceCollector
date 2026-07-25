@@ -1,8 +1,12 @@
-﻿namespace MRDAttendanceCollector.Models;
+﻿using MRDAttendanceCollector.Configuration;
+
+namespace MRDAttendanceCollector.Models;
 
 public interface IAttendanceBackendClient
 {
-    Task<IReadOnlyList<AttendanceDevice>> GetActiveDevicesAsync(CancellationToken cancellationToken);
+    Task<CollectorDevicesSnapshot> GetActiveDevicesAsync(CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<BlackoutWindowOptions>> GetBlackoutWindowsAsync(CancellationToken cancellationToken);
 
     Task<PostRawLogsResult> PostRawLogsAsync(
         int attDeviceId,
@@ -28,4 +32,6 @@ public interface IDeviceSdkAdapter
 public interface IBlackoutService
 {
     bool IsInBlackout(DateTime localNow);
+
+    void SetWindows(IReadOnlyList<BlackoutWindowOptions> windows);
 }

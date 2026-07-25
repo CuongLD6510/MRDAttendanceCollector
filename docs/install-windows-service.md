@@ -1,5 +1,7 @@
 ﻿# Cài đặt Windows Service — MRDAttendanceCollector
 
+> **Deploy đầy đủ trên server** (config → publish → SDK → service → checklist): xem **[deploy-collector-server.md](deploy-collector-server.md)**.
+>
 > Người mới: nên chạy thử dạng **console** và đọc [getting-started.md](getting-started.md) trước khi cài service lên máy chủ.
 
 Chạy trên máy Windows (x86 / WOW64) có quyền Administrator.
@@ -31,7 +33,7 @@ dotnet publish .\MRDAttendanceCollector\MRDAttendanceCollector.csproj `
 Chỉnh cấu hình trong thư mục publish:
 
 - Copy / merge từ `appsettings.Production.json`: `Backend:BaseUrl` đúng host API (mặc định local `http://localhost:54989/`).
-- Cron, Blackout, `Reprocess:Enabled`, optional `ApiKey`.
+- Cron, `Reprocess:Enabled`, optional `ApiKey`. Giờ tạm dừng đồng bộ cấu hình trên Web (Cấu hình chung).
 - Đặt biến môi trường service (khuyến nghị): `DOTNET_ENVIRONMENT=Production`.
 
 ## 3. Tạo service (`sc.exe`)

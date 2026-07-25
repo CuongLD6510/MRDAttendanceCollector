@@ -10,3 +10,13 @@ public sealed class AttendanceDevice
     public DateTime? LastProcessedLogTime { get; set; }
     public string DeviceVendor { get; set; } = "ZKTeco";
 }
+
+/// <summary>
+/// Kết quả fnGetCollectorDevices: danh sách máy + mốc đọc lần đầu (đầu kỳ lương − 1 ngày 23:59).
+/// </summary>
+public sealed class CollectorDevicesSnapshot
+{
+    public IReadOnlyList<AttendanceDevice> Devices { get; init; } = Array.Empty<AttendanceDevice>();
+    /// <summary>Null nếu Backend không trả — Collector fallback Scheduler:InitialSyncFromDate.</summary>
+    public DateTime? InitialSyncFrom { get; init; }
+}

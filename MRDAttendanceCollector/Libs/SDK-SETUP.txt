@@ -22,8 +22,9 @@
      %windir%\SysWOW64\regsvr32.exe zkemkeeper.dll
 
 4. Build project voi Platform Target = x86 (da cau hinh trong .csproj).
-   Build se copy cac DLL native ra THU MUC CHAY APP (canh .exe), giong ZktecoWinformTest.
-   Neu DLL chi nam trong thu muc con Libs\ thi Connect_Net thuong loi ErrorCode=-201.
+   MSBuild target CopyZkTecoSdkToOutput se copy DLL + bat tu Libs/ ra THU MUC CHAY APP (canh .exe).
+   Source chi giu file trong Libs/ — khong link DLL ra root project.
+   Neu DLL chi nam trong thu muc con Libs\ (khong copy canh exe) thi Connect_Net thuong loi ErrorCode=-201.
 
 5. Interop.zkemkeeper.dll da duoc tao san trong Libs/ (khong can tao lai).
 

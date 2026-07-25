@@ -9,6 +9,7 @@ public sealed class CronSyncHostedService : BackgroundService
 {
     private readonly AttendanceSyncService _syncService;
     private readonly IBlackoutService _blackoutService;
+    private readonly IAttendanceBackendClient _backend;
     private readonly SchedulerOptions _options;
     private readonly ILogger<CronSyncHostedService> _logger;
     private readonly CronExpression _cron;
@@ -17,11 +18,13 @@ public sealed class CronSyncHostedService : BackgroundService
     public CronSyncHostedService(
         AttendanceSyncService syncService,
         IBlackoutService blackoutService,
+        IAttendanceBackendClient backend,
         IOptions<SchedulerOptions> options,
         ILogger<CronSyncHostedService> logger)
     {
         _syncService = syncService;
         _blackoutService = blackoutService;
+        _backend = backend;
         _options = options.Value;
         _logger = logger;
         _cron = CronExpression.Parse(_options.Cron, CronFormat.IncludeSeconds);
@@ -63,11 +66,27 @@ public sealed class CronSyncHostedService : BackgroundService
                 break;
             }
 
+            try
+            {
+                var windows = await _backend.GetBlackoutWindowsAsync(stoppingToken);
+                _blackoutService.SetWindows(windows);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Không lấy được giờ tạm dừng đồng bộ từ Backend; giữ cấu hình đã tải lần trước");
+            }
+
             var localNow = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, _timeZone).DateTime;
             if (_blackoutService.IsInBlackout(localNow))
             {
                 _logger.LogWarning(
-                    "Bỏ qua đồng bộ vì đang trong khoảng Blackout. Giờ local={LocalTime:HH:mm:ss}",
+                    "Bỏ qua đồng bộ vì đang trong khoảng tạm dừng. Giờ local={LocalTime:HH:mm:ss}",
                     localNow);
                 continue;
             }

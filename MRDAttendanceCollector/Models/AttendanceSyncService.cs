@@ -26,10 +26,10 @@ public sealed class AttendanceSyncService
     {
         _logger.LogInformation("Bắt đầu chu kỳ đồng bộ");
 
-        IReadOnlyList<AttendanceDevice> devices;
+        CollectorDevicesSnapshot snapshot;
         try
         {
-            devices = await _backend.GetActiveDevicesAsync(cancellationToken);
+            snapshot = await _backend.GetActiveDevicesAsync(cancellationToken);
         }
         catch (Exception ex)
         {
@@ -37,32 +37,38 @@ public sealed class AttendanceSyncService
             return;
         }
 
+        var devices = snapshot.Devices;
         if (devices.Count == 0)
         {
             _logger.LogInformation("Không có máy ACTIVE để đồng bộ");
             return;
         }
 
+        var initialSyncFrom = snapshot.InitialSyncFrom ?? _scheduler.InitialSyncFromDate;
         _logger.LogInformation(
-            "Đồng bộ tuần tự {Count} máy (mỗi máy: đọc SDK → ghi raw → cập nhật sync)",
-            devices.Count);
+            "Đồng bộ tuần tự {Count} máy (mỗi máy: đọc SDK → ghi raw → cập nhật sync). Mốc máy mới={InitialSyncFrom:o}",
+            devices.Count,
+            initialSyncFrom);
 
         foreach (var device in devices)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await SyncDeviceSequentialAsync(device, cancellationToken);
+            await SyncDeviceSequentialAsync(device, initialSyncFrom, cancellationToken);
         }
 
         _logger.LogInformation("Kết thúc chu kỳ đồng bộ");
     }
 
-    private async Task SyncDeviceSequentialAsync(AttendanceDevice device, CancellationToken cancellationToken)
+    private async Task SyncDeviceSequentialAsync(
+        AttendanceDevice device,
+        DateTime initialSyncFrom,
+        CancellationToken cancellationToken)
     {
         try
         {
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutCts.CancelAfter(TimeSpan.FromSeconds(_scheduler.JobTimeoutSeconds));
-            await SyncOneDeviceAsync(device, timeoutCts.Token);
+            await SyncOneDeviceAsync(device, initialSyncFrom, timeoutCts.Token);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -88,13 +94,17 @@ public sealed class AttendanceSyncService
         }
     }
 
-    private async Task SyncOneDeviceAsync(AttendanceDevice device, CancellationToken cancellationToken)
+    private async Task SyncOneDeviceAsync(
+        AttendanceDevice device,
+        DateTime initialSyncFrom,
+        CancellationToken cancellationToken)
     {
         var jobStart = DateTime.Now;
         var retryCount = 0;
         Exception? lastError = null;
 
-        var anchor = device.LastProcessedLogTime ?? _scheduler.InitialSyncFromDate;
+        // Máy mới: neo tại (đầu kỳ lương − 1) 23:59 từ Backend; máy đã sync: LastProcessedLogTime.
+        var anchor = device.LastProcessedLogTime ?? initialSyncFrom;
         var from = anchor.AddMinutes(-_scheduler.DefaultOverlapMinutes);
         var to = DateTime.Now;
 

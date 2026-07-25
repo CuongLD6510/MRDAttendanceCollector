@@ -1,38 +1,61 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Worker">
-
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <PlatformTarget>x86</PlatformTarget>
-    <RuntimeIdentifier>win-x86</RuntimeIdentifier>
-    <RootNamespace>MRDAttendanceCollector</RootNamespace>
-    <UserSecretsId>dotnet-MRDAttendanceCollector-373f6080-60ac-44e2-964a-49a1df69af67</UserSecretsId>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Cronos" Version="0.8.4" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="8.0.1" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.1" />
-    <PackageReference Include="Microsoft.Extensions.Logging.EventLog" Version="8.0.1" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Reference Include="Interop.zkemkeeper">
-      <HintPath>Libs\Interop.zkemkeeper.dll</HintPath>
-      <Private>True</Private>
-      <EmbedInteropTypes>False</EmbedInteropTypes>
-    </Reference>
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="Libs\SDK-SETUP.txt" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="Libs\Register_SDK_x86.bat" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="Libs\*.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Link>%(Filename)%(Extension)</Link>
-    </Content>
-  </ItemGroup>
-
-</Project>
+﻿<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PlatformTarget>x86</PlatformTarget>
+    <RuntimeIdentifier>win-x86</RuntimeIdentifier>
+    <RootNamespace>MRDAttendanceCollector</RootNamespace>
+    <UserSecretsId>dotnet-MRDAttendanceCollector-373f6080-60ac-44e2-964a-49a1df69af67</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Cronos" Version="0.8.4" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging.EventLog" Version="8.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Interop.zkemkeeper">
+      <HintPath>Libs\Interop.zkemkeeper.dll</HintPath>
+      <Private>True</Private>
+      <EmbedInteropTypes>False</EmbedInteropTypes>
+    </Reference>
+  </ItemGroup>
+
+  <!--
+    Native ZKTeco SDK: giữ trong Libs/, không hiện từng DLL ở root Solution Explorer.
+    - Debug/F5: copy cạnh .exe trước khi chạy (CopyFilesToOutputDirectory + PrepareForRun)
+    - Publish: đưa vào ResolvedFileToPublish (phẳng cạnh app)
+  -->
+  <Target Name="CollectZkTecoSdkFiles">
+    <ItemGroup>
+      <_ZkSdkFile Include="$(MSBuildProjectDirectory)\Libs\*.dll" />
+      <_ZkSdkFile Include="$(MSBuildProjectDirectory)\Libs\Register_SDK_x86.bat" />
+      <_ZkSdkFile Include="$(MSBuildProjectDirectory)\Libs\SDK-SETUP.txt" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="CopyZkTecoSdkToOutput"
+          DependsOnTargets="CollectZkTecoSdkFiles"
+          AfterTargets="CopyFilesToOutputDirectory"
+          BeforeTargets="PrepareForRun">
+    <Copy SourceFiles="@(_ZkSdkFile)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="IncludeZkTecoSdkInPublish"
+          DependsOnTargets="CollectZkTecoSdkFiles"
+          BeforeTargets="ComputeFilesToPublish">
+    <ItemGroup>
+      <ResolvedFileToPublish Include="@(_ZkSdkFile->'%(FullPath)')"
+                             Exclude="@(ResolvedFileToPublish)">
+        <RelativePath>%(Filename)%(Extension)</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+  </Target>
+
+</Project>

@@ -25,7 +25,7 @@ Collector **luôn** gọi Backend HTTP + đọc máy ZKTeco thật. Cần Backen
 
 Mỗi lần đến lịch **Cron**:
 
-1. Kiểm tra có nằm trong **Blackout** (giờ cấm sync) không → nếu có thì **bỏ qua**.
+1. Kiểm tra có nằm trong **giờ tạm dừng đồng bộ** không → nếu có thì **bỏ qua**.
 2. Gọi Backend lấy danh sách máy chấm công đang ACTIVE (`fnGetCollectorDevices`).
 3. Với **từng máy một** (tuần tự): kết nối SDK ZKTeco → đọc log → chuẩn hóa `WORK_DATE` → `fnPostCollectorRawLogs` → `fnPostCollectorSyncResult` → máy tiếp theo.
 4. Hosted drain (song song với Cron): định kỳ gọi `fnDrainAttReprocessQueue` để backend materialize bảng công (Collector **không** scoring).
@@ -35,7 +35,7 @@ Collector **chỉ thu thập dữ liệu thô** (+ trigger drain); không tính 
 ```text
 [Cron tick]
     │
-    ├─ Trong Blackout? ──Yes──► Bỏ qua lần này
+    ├─ Trong giờ tạm dừng? ──Yes──► Bỏ qua lần này
     │
     No
     ▼
@@ -81,7 +81,7 @@ dotnet run --project .\MRDAttendanceCollector\MRDAttendanceCollector.csproj
 
 Font terminal nên hỗ trợ Unicode (Cascadia Mono / Consolas).
 
-**Môi trường Development** (`launchSettings.json` đặt `DOTNET_ENVIRONMENT=Development`) sẽ đọc thêm `appsettings.Development.json` (blackout gần như tắt để dễ test ban ngày).
+**Môi trường Development** (`launchSettings.json` đặt `DOTNET_ENVIRONMENT=Development`) sẽ đọc thêm `appsettings.Development.json` (Cron / Backend / Reprocess khi debug).
 
 ### 3.4. Dừng
 
@@ -105,7 +105,7 @@ info: ...ZkTecoDeviceSdkAdapter[0]
 info: ...AttendanceSyncService[0]
       Máy 1 THÀNH CÔNG Đọc=2 Thêm mới=2 Trùng=0
 warn: ...CronSyncHostedService[0]
-      Bỏ qua đồng bộ vì đang trong khoảng Blackout. Giờ local=11:33:00
+      Bỏ qua đồng bộ vì đang trong khoảng tạm dừng. Giờ local=11:33:00
 ```
 
 | Mức log | Ý nghĩa |
@@ -152,8 +152,8 @@ Chi tiết cài / gỡ service: [install-windows-service.md](install-windows-ser
 
 | Ưu tiên | File / thư mục | Vì sao quan trọng |
 | ------- | -------------- | ----------------- |
-| 1 | `MRDAttendanceCollector/appsettings.json` | Cron, Blackout, Backend BaseUrl |
-| 1 | `MRDAttendanceCollector/appsettings.Development.json` | Cấu hình khi debug (blackout test) |
+| 1 | `MRDAttendanceCollector/appsettings.json` | Cron, Backend BaseUrl, Reprocess |
+| 1 | `MRDAttendanceCollector/appsettings.Development.json` | Cấu hình khi debug (Cron / Backend) |
 | 2 | `MRDAttendanceCollector/Program.cs` | Điểm vào: đăng ký DI, Windows Service, Logging |
 | 3 | `Scheduling/CronSyncHostedService.cs` | Vòng lặp: chờ Cron → check blackout → gọi sync |
 | 4 | `Models/AttendanceSyncService.cs` | Nghiệp vụ 1 chu kỳ: lấy máy → đọc → đẩy → cập nhật mốc |
@@ -229,10 +229,9 @@ Mặc định **mỗi phút**: `0 */1 * * * *`
 (Cron 6 field: **giây phút giờ ngày tháng thứ**.)  
 Khi debug có thể tạm đổi sang `0/15 * * * * *` (mỗi 15 giây).
 
-### Đang bị “Bỏ qua đồng bộ vì đang trong khoảng Blackout”?
+### Đang bị “Bỏ qua đồng bộ vì đang trong khoảng tạm dừng”?
 
-Giờ máy nằm trong `BlackoutWindows` (vd. 11:30–12:30). Khi debug, `appsettings.Development.json` đã ghi đè blackout sang khoảng 03:00–03:01.  
-**Lưu ý:** mảng config gộp theo index — không chỉ đặt `[]` để xóa blackout từ file gốc.
+Giờ máy nằm trong khoảng HR cấu hình trên **Cấu hình chung** (vd. 11:30–12:30 hoặc cả ngày `00:00`–`24:00`). Collector lấy qua `fnGetCollectorBlackoutWindows`, không đọc appsettings.
 
 ### Checklist trước khi chạy thật
 
@@ -249,7 +248,7 @@ Giờ máy nằm trong `BlackoutWindows` (vd. 11:30–12:30). Khi debug, `appset
 - [ ] Chạy được `dotnet run` / F5 và thấy log `Dịch vụ lịch Cron đã khởi động`
 - [ ] Thấy ít nhất một chu kỳ `Bắt đầu chu kỳ đồng bộ` → kết nối máy / `THÀNH CÔNG`
 - [ ] Biết Ctrl+C dừng service
-- [ ] Biết chỉnh Cron / Blackout / `Backend:BaseUrl` trong `appsettings*.json`
+- [ ] Biết chỉnh Cron / `Backend:BaseUrl` trong `appsettings*.json`; giờ tạm dừng đồng bộ trên Web (Cấu hình chung)
 - [ ] Biết file nào chứa lịch (`CronSyncHostedService`) và file nào làm nghiệp vụ (`AttendanceSyncService`)
 - [ ] (Tuỳ chọn) Biết mở Event Viewer khi cài Windows Service
 
