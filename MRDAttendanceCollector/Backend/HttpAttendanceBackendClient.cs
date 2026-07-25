@@ -1,4 +1,4 @@
-﻿using System.Net.Http.Json;
+﻿using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
@@ -20,17 +20,20 @@ public sealed class HttpAttendanceBackendClient : IAttendanceBackendClient
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly BackendOptions _options;
     private readonly SchedulerOptions _scheduler;
+    private readonly ReprocessOptions _reprocess;
     private readonly ILogger<HttpAttendanceBackendClient> _logger;
 
     public HttpAttendanceBackendClient(
         IHttpClientFactory httpClientFactory,
         IOptions<BackendOptions> options,
         IOptions<SchedulerOptions> schedulerOptions,
+        IOptions<ReprocessOptions> reprocessOptions,
         ILogger<HttpAttendanceBackendClient> logger)
     {
         _httpClientFactory = httpClientFactory;
         _options = options.Value;
         _scheduler = schedulerOptions.Value;
+        _reprocess = reprocessOptions.Value;
         _logger = logger;
     }
 
@@ -109,7 +112,32 @@ public sealed class HttpAttendanceBackendClient : IAttendanceBackendClient
         EnsureSuccess(response, "fnPostCollectorSyncResult");
     }
 
-    private async Task<ApiEnvelope> PostWithRetryAsync(string relativeUrl, object payload, CancellationToken cancellationToken)
+    public async Task<DrainReprocessResult> DrainReprocessQueueAsync(int maxItems, CancellationToken cancellationToken)
+    {
+        var payload = new
+        {
+            MaxItems = maxItems < 1 ? 1 : maxItems
+        };
+        var drainTimeout = TimeSpan.FromSeconds(Math.Max(60, _reprocess.TimeoutSeconds));
+        var response = await PostWithRetryAsync(
+            "api/AttendanceAPI/fnDrainAttReprocessQueue",
+            payload,
+            cancellationToken,
+            drainTimeout);
+        EnsureSuccess(response, "fnDrainAttReprocessQueue");
+        return new DrainReprocessResult
+        {
+            Processed = response.Data?.Processed ?? 0,
+            Failed = response.Data?.Failed ?? 0,
+            Remaining = response.Data?.Remaining ?? 0
+        };
+    }
+
+    private async Task<ApiEnvelope> PostWithRetryAsync(
+        string relativeUrl,
+        object payload,
+        CancellationToken cancellationToken,
+        TimeSpan? requestTimeout = null)
     {
         Exception? lastError = null;
         var attempts = Math.Max(1, _scheduler.RetryMaxAttempts);
@@ -120,8 +148,16 @@ public sealed class HttpAttendanceBackendClient : IAttendanceBackendClient
             try
             {
                 var httpClient = _httpClientFactory.CreateClient(HttpClientName);
+                if (requestTimeout.HasValue)
+                {
+                    httpClient.Timeout = requestTimeout.Value;
+                }
+
                 using var request = new HttpRequestMessage(HttpMethod.Post, relativeUrl);
-                request.Content = JsonContent.Create(payload, options: JsonOptions);
+                var json = JsonSerializer.Serialize(payload, JsonOptions);
+                using var content = new StringContent(json, Encoding.UTF8, "application/json");
+                await content.LoadIntoBufferAsync();
+                request.Content = content;
                 if (!string.IsNullOrWhiteSpace(_options.ApiKey))
                 {
                     request.Headers.TryAddWithoutValidation("X-Api-Key", _options.ApiKey);
@@ -138,9 +174,30 @@ public sealed class HttpAttendanceBackendClient : IAttendanceBackendClient
                 return JsonSerializer.Deserialize<ApiEnvelope>(body, JsonOptions)
                     ?? throw new InvalidOperationException($"Phản hồi rỗng từ {relativeUrl}");
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 throw;
+            }
+            catch (TaskCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                // HttpClient.Timeout — cho phép retry thay vì coi như host đang shutdown.
+                lastError = ex;
+                _logger.LogWarning(
+                    ex,
+                    "Gọi Backend {Url} lần {Attempt}/{Max} hết thời gian chờ ({Timeout}s)",
+                    relativeUrl,
+                    attempt,
+                    attempts,
+                    requestTimeout?.TotalSeconds ?? _options.TimeoutSeconds);
+                if (attempt < attempts)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(_scheduler.RetryDelaySeconds), cancellationToken);
+                    continue;
+                }
+
+                throw new TimeoutException(
+                    $"Gọi Backend {relativeUrl} hết thời gian chờ sau {attempts} lần thử.",
+                    ex);
             }
             catch (Exception ex)
             {
@@ -183,6 +240,9 @@ public sealed class HttpAttendanceBackendClient : IAttendanceBackendClient
         public List<ApiDevice>? Devices { get; set; }
         public int Inserted { get; set; }
         public int Duplicate { get; set; }
+        public int Processed { get; set; }
+        public int Failed { get; set; }
+        public int Remaining { get; set; }
     }
 
     private sealed class ApiDevice

@@ -6,6 +6,7 @@ namespace MRDAttendanceCollector.Sdk;
 public sealed class ZkTecoDeviceSdkAdapter : IDeviceSdkAdapter
 {
     private readonly ILogger<ZkTecoDeviceSdkAdapter> _logger;
+    private static int _nativePathReady;
 
     public ZkTecoDeviceSdkAdapter(ILogger<ZkTecoDeviceSdkAdapter> logger)
     {
@@ -20,7 +21,38 @@ public sealed class ZkTecoDeviceSdkAdapter : IDeviceSdkAdapter
         DateTime toInclusive,
         CancellationToken cancellationToken)
     {
-        return Task.Run(() => ReadLogsCore(device, fromInclusive, toInclusive, cancellationToken), cancellationToken);
+        // ZKTeco COM (zkemkeeper) cần STA — không dùng thread-pool MTA.
+        var tcs = new TaskCompletionSource<IReadOnlyList<RawAttendanceLog>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var logs = ReadLogsCore(device, fromInclusive, toInclusive, cancellationToken);
+                tcs.TrySetResult(logs);
+            }
+            catch (OperationCanceledException ex)
+            {
+                tcs.TrySetCanceled(ex.CancellationToken);
+            }
+            catch (Exception ex)
+            {
+                tcs.TrySetException(ex);
+            }
+        });
+        thread.IsBackground = true;
+#pragma warning disable CA1416
+        thread.SetApartmentState(ApartmentState.STA);
+#pragma warning restore CA1416
+        thread.Name = $"ZkTeco-STA-{device.AttDeviceId}";
+        thread.Start();
+
+        if (cancellationToken.CanBeCanceled)
+        {
+            cancellationToken.Register(() => tcs.TrySetCanceled(cancellationToken));
+        }
+
+        return tcs.Task;
     }
 
     private IReadOnlyList<RawAttendanceLog> ReadLogsCore(
@@ -35,27 +67,36 @@ public sealed class ZkTecoDeviceSdkAdapter : IDeviceSdkAdapter
         }
 
         cancellationToken.ThrowIfCancellationRequested();
+        EnsureNativeSdkPath();
 
+        // Giống ZkDeviceService: 1 instance CZKEMClass / lần đọc, Connect_Net(ip, port), không password.
         var zkem = new zkemkeeper.CZKEMClass();
         var machineNumber = device.MachineNumber <= 0 ? 1 : device.MachineNumber;
+        var ip = (device.IpAddress ?? string.Empty).Trim();
+        var port = device.PortNo <= 0 ? 4370 : device.PortNo;
         var connected = false;
 
         try
         {
-            connected = zkem.Connect_Net(device.IpAddress, device.PortNo);
+            if (string.IsNullOrWhiteSpace(ip))
+            {
+                throw new InvalidOperationException($"Máy {device.AttDeviceId} chưa có địa chỉ IP.");
+            }
+
+            connected = zkem.Connect_Net(ip, port);
             if (!connected)
             {
                 var errorCode = 0;
                 zkem.GetLastError(ref errorCode);
                 throw new InvalidOperationException(
-                    $"Không kết nối được máy {device.AttDeviceId} tại {device.IpAddress}:{device.PortNo}. ErrorCode={errorCode}");
+                    $"Không kết nối được máy {device.AttDeviceId} tại {ip}:{port}. ErrorCode={errorCode}");
             }
 
             _logger.LogInformation(
                 "Đã kết nối máy ZKTeco {DeviceId} {Ip}:{Port}",
                 device.AttDeviceId,
-                device.IpAddress,
-                device.PortNo);
+                ip,
+                port);
 
             zkem.EnableDevice(machineNumber, false);
             try
@@ -84,12 +125,49 @@ public sealed class ZkTecoDeviceSdkAdapter : IDeviceSdkAdapter
                 }
             }
 
-            if (Marshal.IsComObject(zkem))
+            // Không ReleaseComObject — POC Winform cũng chỉ Disconnect; RCW để GC thu.
+        }
+    }
+
+    private static void EnsureNativeSdkPath()
+    {
+        if (Interlocked.Exchange(ref _nativePathReady, 1) == 1)
+        {
+            return;
+        }
+
+        var baseDir = AppContext.BaseDirectory;
+        // Ưu tiên thư mục chạy app (dll đã copy cạnh exe). Fallback Libs\ nếu còn bản cũ.
+        var candidates = new[]
+        {
+            baseDir,
+            Path.Combine(baseDir, "Libs")
+        };
+
+        foreach (var dir in candidates)
+        {
+            if (!Directory.Exists(dir))
             {
-                Marshal.ReleaseComObject(zkem);
+                continue;
+            }
+
+            if (File.Exists(Path.Combine(dir, "tcpcomm.dll")) || File.Exists(Path.Combine(dir, "zkemkeeper.dll")))
+            {
+                SetDllDirectory(dir);
+                var path = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+                if (!path.Split(';', StringSplitOptions.RemoveEmptyEntries)
+                        .Any(p => string.Equals(p, dir, StringComparison.OrdinalIgnoreCase)))
+                {
+                    Environment.SetEnvironmentVariable("PATH", dir + Path.PathSeparator + path);
+                }
+
+                return;
             }
         }
     }
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern bool SetDllDirectory(string lpPathName);
 
     private static List<RawAttendanceLog> ReadLogsInRange(
         zkemkeeper.CZKEMClass device,

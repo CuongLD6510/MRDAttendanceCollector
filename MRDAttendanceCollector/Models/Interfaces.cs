@@ -10,6 +10,8 @@ public interface IAttendanceBackendClient
         CancellationToken cancellationToken);
 
     Task PostSyncResultAsync(SyncJobResult result, CancellationToken cancellationToken);
+
+    Task<DrainReprocessResult> DrainReprocessQueueAsync(int maxItems, CancellationToken cancellationToken);
 }
 
 public interface IDeviceSdkAdapter

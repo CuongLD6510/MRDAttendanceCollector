@@ -31,7 +31,7 @@
     <None Include="Libs\Register_SDK_x86.bat" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Libs\*.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Link>Libs\%(Filename)%(Extension)</Link>
+      <Link>%(Filename)%(Extension)</Link>
     </Content>
   </ItemGroup>
 

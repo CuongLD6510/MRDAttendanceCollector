@@ -44,23 +44,20 @@ public sealed class AttendanceSyncService
         }
 
         _logger.LogInformation(
-            "Đồng bộ {Count} máy, MaxParallel={MaxParallel}",
-            devices.Count,
-            _scheduler.MaxParallelJobs);
+            "Đồng bộ tuần tự {Count} máy (mỗi máy: đọc SDK → ghi raw → cập nhật sync)",
+            devices.Count);
 
-        using var semaphore = new SemaphoreSlim(_scheduler.MaxParallelJobs, _scheduler.MaxParallelJobs);
-        var tasks = devices.Select(device => SyncDeviceWithThrottleAsync(device, semaphore, cancellationToken));
-        await Task.WhenAll(tasks);
+        foreach (var device in devices)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await SyncDeviceSequentialAsync(device, cancellationToken);
+        }
 
         _logger.LogInformation("Kết thúc chu kỳ đồng bộ");
     }
 
-    private async Task SyncDeviceWithThrottleAsync(
-        AttendanceDevice device,
-        SemaphoreSlim semaphore,
-        CancellationToken cancellationToken)
+    private async Task SyncDeviceSequentialAsync(AttendanceDevice device, CancellationToken cancellationToken)
     {
-        await semaphore.WaitAsync(cancellationToken);
         try
         {
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -89,10 +86,6 @@ public sealed class AttendanceSyncService
         {
             _logger.LogError(ex, "Lỗi không mong đợi khi đồng bộ máy {DeviceId}", device.AttDeviceId);
         }
-        finally
-        {
-            semaphore.Release();
-        }
     }
 
     private async Task SyncOneDeviceAsync(AttendanceDevice device, CancellationToken cancellationToken)
@@ -119,7 +112,15 @@ public sealed class AttendanceSyncService
             try
             {
                 var rawLogs = await _adapter.ReadLogsAsync(device, from, to, cancellationToken);
-                var normalized = NormalizeLogs(device.AttDeviceId, rawLogs);
+                var normalized = NormalizeLogs(device.AttDeviceId, rawLogs, out var skippedEmptyEnroll);
+                if (skippedEmptyEnroll > 0)
+                {
+                    _logger.LogWarning(
+                        "Máy {DeviceId} bỏ qua {Count} bản ghi thiếu mã chấm công",
+                        device.AttDeviceId,
+                        skippedEmptyEnroll);
+                }
+
                 var postResult = await _backend.PostRawLogsAsync(device.AttDeviceId, normalized, cancellationToken);
 
                 var maxLogTime = normalized.Count > 0
@@ -191,13 +192,18 @@ public sealed class AttendanceSyncService
             retryCount);
     }
 
-    private static List<RawAttendanceLog> NormalizeLogs(int attDeviceId, IReadOnlyList<RawAttendanceLog> rawLogs)
+    private static List<RawAttendanceLog> NormalizeLogs(
+        int attDeviceId,
+        IReadOnlyList<RawAttendanceLog> rawLogs,
+        out int skippedEmptyEnroll)
     {
+        skippedEmptyEnroll = 0;
         var result = new List<RawAttendanceLog>(rawLogs.Count);
         foreach (var log in rawLogs)
         {
             if (string.IsNullOrWhiteSpace(log.EnrollNumber))
             {
+                skippedEmptyEnroll++;
                 continue;
             }
 

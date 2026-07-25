@@ -1,6 +1,6 @@
 ﻿# API Contracts — Attendance Collector
 
-Backend (`MRDMobileApplication` / `AttendanceAPI`) **chưa implement** các endpoint dưới đây. Collector gọi theo contract này khi `Backend:UseMock = false`.
+Backend (`MRDMobileApplication` / `AttendanceAPI`) implement các endpoint dưới đây. Collector luôn gọi theo contract này qua `HttpAttendanceBackendClient` (`Backend:BaseUrl`).
 
 Quy ước response:
 
@@ -8,9 +8,11 @@ Quy ước response:
 - `ErrCode != "1"` → lỗi
 - Giữ nguyên tên property (không camelCase)
 
+**Client (.NET):** gửi body bằng `StringContent` + `LoadIntoBufferAsync()` (có `Content-Length`). Không dùng `JsonContent` — Web API 2 không bind `JObject` khi request `Transfer-Encoding: chunked`.
+
 ---
 
-## 1. `POST api/AttendanceAPI/fnGetCollectorDevices`
+## 1. `POST api/AttendanceAPI/fnGetCollectorDevices` *(đã implement)*
 
 Lấy danh sách máy `STATUS_ID = ACTIVE` kèm mốc sync.
 
@@ -138,6 +140,35 @@ Cập nhật mốc sync trên `TBL_ATT_DEVICE` và ghi `TBL_ATT_SYNC_JOB_LOG`.
 
 ---
 
+## 4. `POST api/AttendanceAPI/fnDrainAttReprocessQueue`
+
+Collector (hosted drain) gọi định kỳ để backend claim job `TBL_ATT_REPROCESS_QUEUE` → tính bảng công → upsert `TBL_ATT_DAILY_RESULT`.
+
+### Request (mẫu)
+
+```json
+{
+  "MaxItems": 3
+}
+```
+
+### Response (mẫu)
+
+```json
+{
+  "ErrCode": "1",
+  "ErrMsg": "success",
+  "ErrBack": "",
+  "Data": {
+    "Processed": 1,
+    "Failed": 0,
+    "Remaining": 2
+  }
+}
+```
+
+---
+
 ## Auth (tuỳ chọn)
 
-Collector gửi header `X-Api-Key` nếu `Backend:ApiKey` khác rỗng. Backend có thể bỏ qua hoặc validate sau.
+Collector gửi header `X-Api-Key` nếu `Backend:ApiKey` khác rỗng. Backend validate khi `Web.config` key `AttendanceCollectorApiKey` khác rỗng.

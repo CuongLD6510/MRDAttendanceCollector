@@ -28,7 +28,11 @@ dotnet publish .\MRDAttendanceCollector\MRDAttendanceCollector.csproj `
   -o C:\Services\MRDAttendanceCollector
 ```
 
-Chỉnh `appsettings.json` trong thư mục publish (`Backend`, Cron, Blackout, …).
+Chỉnh cấu hình trong thư mục publish:
+
+- Copy / merge từ `appsettings.Production.json`: `Backend:BaseUrl` đúng host API (mặc định local `http://localhost:54989/`).
+- Cron, Blackout, `Reprocess:Enabled`, optional `ApiKey`.
+- Đặt biến môi trường service (khuyến nghị): `DOTNET_ENVIRONMENT=Production`.
 
 ## 3. Tạo service (`sc.exe`)
 

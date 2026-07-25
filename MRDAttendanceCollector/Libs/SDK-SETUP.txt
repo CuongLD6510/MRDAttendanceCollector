@@ -1,4 +1,4 @@
-ZKTeco Standalone SDK - Huong dan cai dat
+﻿ZKTeco Standalone SDK - Huong dan cai dat
 ==========================================
 
 1. Tai ZKTeco Standalone SDK tu trang ho tro ZKTeco hoac dia kem may cham cong.
@@ -18,10 +18,12 @@ ZKTeco Standalone SDK - Huong dan cai dat
 3. Dang ky COM (BAT BUOC - chay voi quyen Administrator):
    - Click phai file Register_SDK_x86.bat -> Run as administrator
    - Hoac mo CMD (Admin) va chay:
-     cd /d "D:\CuongLD\WorkSpace\projects\ZktecoWinformTest\ZktecoWinformTest\Libs"
+     cd /d "D:\CuongLD\WorkSpace\projects\TimeLeave\MRDAttendanceCollector\MRDAttendanceCollector\Libs"
      %windir%\SysWOW64\regsvr32.exe zkemkeeper.dll
 
 4. Build project voi Platform Target = x86 (da cau hinh trong .csproj).
+   Build se copy cac DLL native ra THU MUC CHAY APP (canh .exe), giong ZktecoWinformTest.
+   Neu DLL chi nam trong thu muc con Libs\ thi Connect_Net thuong loi ErrorCode=-201.
 
 5. Interop.zkemkeeper.dll da duoc tao san trong Libs/ (khong can tao lai).
 

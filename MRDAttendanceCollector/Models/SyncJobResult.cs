@@ -27,3 +27,10 @@ public sealed class PostRawLogsResult
     public int Inserted { get; set; }
     public int Duplicate { get; set; }
 }
+
+public sealed class DrainReprocessResult
+{
+    public int Processed { get; set; }
+    public int Failed { get; set; }
+    public int Remaining { get; set; }
+}
