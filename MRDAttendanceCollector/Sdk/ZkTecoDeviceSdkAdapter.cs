@@ -98,21 +98,16 @@ public sealed class ZkTecoDeviceSdkAdapter : IDeviceSdkAdapter
                 ip,
                 port);
 
-            zkem.EnableDevice(machineNumber, false);
-            try
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var logs = ReadLogsInRange(zkem, machineNumber, fromInclusive, toInclusive, device.AttDeviceId);
-                _logger.LogInformation(
-                    "Máy {DeviceId} SDK trả về {Count} bản ghi thô",
-                    device.AttDeviceId,
-                    logs.Count);
-                return logs;
-            }
-            finally
-            {
-                zkem.EnableDevice(machineNumber, true);
-            }
+            // Không khóa máy khi đọc log: nhiều NV — không được tạm chặn chấm vân tay / thẻ.
+            // zkem.EnableDevice(machineNumber, false);
+            cancellationToken.ThrowIfCancellationRequested();
+            var logs = ReadLogsInRange(zkem, machineNumber, fromInclusive, toInclusive, device.AttDeviceId);
+            _logger.LogInformation(
+                "Máy {DeviceId} SDK trả về {Count} bản ghi thô",
+                device.AttDeviceId,
+                logs.Count);
+            // zkem.EnableDevice(machineNumber, true);
+            return logs;
         }
         finally
         {

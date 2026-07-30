@@ -70,6 +70,15 @@ Get-Service MRDAttendanceCollector
 # Windows Logs → Application → Source: MRDAttendanceCollector
 ```
 
+Khi service start, log đầu tiên dạng:
+
+```text
+Môi trường=Production. Đang đọc appsettings.json + appsettings.Production.json (nếu có). Cron=0 */15 * * * * Backend=http://...
+```
+
+- `Môi trường=Production` → đang dùng **`appsettings.Production.json`**
+- `Môi trường=Development` → đang dùng **`appsettings.Development.json`**
+
 ## 6. Dừng / gỡ
 
 ```powershell

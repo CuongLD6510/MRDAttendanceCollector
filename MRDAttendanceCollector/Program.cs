@@ -50,6 +50,16 @@ builder.Logging.AddEventLog(settings =>
 #pragma warning restore CA1416
 
 var host = builder.Build();
+
+var envName = builder.Environment.EnvironmentName;
+var logger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
+logger.LogInformation(
+    "Môi trường={Environment}. Đang đọc appsettings.json + appsettings.{Environment}.json (nếu có). Cron={Cron} Backend={BaseUrl}",
+    envName,
+    envName,
+    builder.Configuration["Scheduler:Cron"],
+    builder.Configuration["Backend:BaseUrl"]);
+
 host.Run();
 
 static void TrySetConsoleUtf8()

@@ -260,6 +260,7 @@ Khi chạy Windows Service **không** có console. Xem log tại:
 
 Log kỳ vọng khi ổn:
 
+- `Môi trường=Production. Đang đọc appsettings.json + appsettings.Production.json ...`
 - `Dịch vụ lịch Cron đã khởi động. Cron=0 */15 * * * * ...`
 - `AttReprocessDrainHostedService đã khởi động...`
 - Mỗi chu kỳ: `Bắt đầu chu kỳ đồng bộ` → `Máy ... khoảng đọc ...` → `THÀNH CÔNG` / lỗi rõ ràng
