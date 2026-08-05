@@ -51,8 +51,8 @@ Khi service chạy với `DOTNET_ENVIRONMENT=Production`, host đọc lần lư�
 | `Scheduler` | `DefaultOverlapMinutes` | `30` | Đọc chồng để tránh miss biên |
 | `Scheduler` | `InitialSyncFromDate` | (fallback) | Máy mới ưu tiên `INITIAL_SYNC_FROM` từ API = **đầu kỳ lương − 1 ngày, 23:59** |
 | `Reprocess` | `Enabled` | `true` | Giữ bật drain bảng công |
-| `Reprocess` | `IntervalSeconds` | `15` | **Giữ nguyên** theo cấu hình đã chốt |
-| `Reprocess` | `MaxItemsPerDrain` | `15` | **Giữ nguyên** |
+| `Reprocess` | `IntervalSeconds` | `10` | Drain thường xuyên hơn sau khi thu hẹp phạm vi kỳ lương |
+| `Reprocess` | `MaxItemsPerDrain` | `25` | Tăng throughput (clamp API ≤ 30) |
 | `Reprocess` | `TimeoutSeconds` | `300` | **Giữ nguyên** |
 | `Backend` | `BaseUrl` | URL API thật trên server | Bắt buộc đổi — ví dụ `http://192.168.1.10:54989/` |
 | `Backend` | `ApiKey` | Theo cấu hình Backend (nếu có) | Header `X-Api-Key` |
@@ -77,8 +77,8 @@ Ví dụ tối thiểu cần sửa cho môi trường thật:
     "DefaultOverlapMinutes": 30
   },
   "Reprocess": {
-    "IntervalSeconds": 15,
-    "MaxItemsPerDrain": 15,
+    "IntervalSeconds": 10,
+    "MaxItemsPerDrain": 25,
     "TimeoutSeconds": 300,
     "Enabled": true
   },

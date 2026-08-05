@@ -41,7 +41,7 @@ public sealed class ReprocessOptions
     public bool Enabled { get; set; } = true;
     public int IntervalSeconds { get; set; } = 10;
     /// <summary>Số job tối đa mỗi lần gọi drain (mỗi job = 1 lần tính bảng công). Clamp 1–30.</summary>
-    public int MaxItemsPerDrain { get; set; } = 15;
+    public int MaxItemsPerDrain { get; set; } = 25;
     /// <summary>Timeout HTTP riêng cho fnDrainAttReprocessQueue (tính bảng công có thể lâu).</summary>
     public int TimeoutSeconds { get; set; } = 300;
 }
